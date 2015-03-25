@@ -8,8 +8,12 @@ class DBMutex(models.Model):
     :type lock_id: str
     :param lock_id: A unique CharField with a max length of 256
 
+    :type owner: str
+    :param owner: A CharField with a max length of 256
+
     :type creation_time: datetime
     :param creation_time: The creation time of the mutex lock
     """
     lock_id = models.CharField(max_length=256, unique=True)
+    owner = models.CharField(max_length=256, default='')
     creation_time = models.DateTimeField(auto_now_add=True)

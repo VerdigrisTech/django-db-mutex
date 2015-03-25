@@ -41,6 +41,20 @@ class ContextManagerTestCase(TestCase):
         self.assertTrue(DBMutex.objects.filter(id=m.id).exists())
 
     @freeze_time('2014-02-01')
+    def test_lock_before_new_owner(self):
+        """
+        Tests when a lock already exists.
+        """
+        # Create a lock
+        m = DBMutex.objects.create(lock_id='lock_id', owner='1')
+        # Try to acquire the lock. It should raise an exception
+        with self.assertRaises(DBMutexError):
+            with db_mutex('lock_id', '2'):
+                raise NotImplementedError
+        # The lock should still exist
+        self.assertTrue(DBMutex.objects.filter(id=m.id).exists())
+
+    @freeze_time('2014-02-01')
     def test_lock_before_suppress_acquisition_errors(self):
         """
         Tests when a lock already exists. Verifies that an exception is thrown when
@@ -177,6 +191,23 @@ class ContextManagerTestCase(TestCase):
 
                     # Release the lock before the context manager finishes
                     m.delete()
+
+    def test_owner_changed_timeout_error(self):
+        """
+        Tests the case when a lock expires while the context manager is executing.
+        """
+        with freeze_time('2014-02-01'):
+            # Acquire a lock at the given time and release it before it is finished. It
+            # should result in an error
+            with self.assertRaises(DBMutexTimeoutError):
+                with db_mutex('lock_id', owner='1'):
+                    self.assertEqual(DBMutex.objects.count(), 1)
+                    m = DBMutex.objects.get(lock_id='lock_id')
+                    self.assertEqual(m.creation_time, datetime(2014, 2, 1))
+
+                    # Release the lock before the context manager finishes
+                    m.delete()
+                    m = DBMutex.objects.create(lock_id='lock_id', owner='2')
 
 
 class FunctionDecoratorTestCase(TestCase):
